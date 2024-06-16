@@ -34,7 +34,7 @@ class Context {
         return undefined;
     }
     setValue(key, value) {
-        const stack = [...(this.stackStorage.getStore() || [])];
+        const stack = [this.topData, ...(this.stackStorage.getStore() || [])];
         const topItem = stack[stack.length - 1];
         topItem[key] = value;
     }
