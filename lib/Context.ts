@@ -4,10 +4,12 @@ export type ContextKeyValueData = { [key: string]: any }
 
 export interface ContextConfig {
   flushIfFail?: boolean
+  deleteUndefined?: boolean
 }
 
 export const CONTEXT_BASE_CONFIG: ContextConfig = {
   flushIfFail: false,
+  deleteUndefined: true,
 }
 
 export class Context<T extends ContextKeyValueData> {
@@ -57,6 +59,15 @@ export class Context<T extends ContextKeyValueData> {
       const keys = Object.keys(actualData)
       for (const key of keys) {
         ;(topItem[key] as any) = actualData[key]
+      }
+    }
+
+    if (this.config.deleteUndefined && stack.length === 1) {
+      const keys = Object.keys(stack[0])
+      for (const key of keys) {
+        if (typeof stack[0][key] === 'undefined') {
+          delete stack[0][key]
+        }
       }
     }
 
