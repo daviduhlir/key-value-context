@@ -54,7 +54,7 @@ export class Context<T extends ContextKeyValueData> {
     }
 
     // flush storage
-    if (error && (this.config.flushIfFail || !error)) {
+    if ((error && this.config.flushIfFail) || !error) {
       const topItem = stack[stack.length - 1]
       const keys = Object.keys(actualData)
       for (const key of keys) {

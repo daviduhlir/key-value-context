@@ -3,6 +3,7 @@ export declare type ContextKeyValueData = {
 };
 export interface ContextConfig {
     flushIfFail?: boolean;
+    deleteUndefined?: boolean;
 }
 export declare const CONTEXT_BASE_CONFIG: ContextConfig;
 export declare class Context<T extends ContextKeyValueData> {

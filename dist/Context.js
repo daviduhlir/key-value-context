@@ -4,6 +4,7 @@ exports.Context = exports.CONTEXT_BASE_CONFIG = void 0;
 const AsyncLocalStorage_1 = require("./utils/AsyncLocalStorage");
 exports.CONTEXT_BASE_CONFIG = {
     flushIfFail: false,
+    deleteUndefined: true,
 };
 class Context {
     constructor(topData = {}, config = {}) {
@@ -39,12 +40,20 @@ class Context {
         catch (e) {
             error = e;
         }
-        if (error && (this.config.flushIfFail || !error)) {
+        if ((error && this.config.flushIfFail) || !error) {
             const topItem = stack[stack.length - 1];
             const keys = Object.keys(actualData);
             for (const key of keys) {
                 ;
                 topItem[key] = actualData[key];
+            }
+        }
+        if (this.config.deleteUndefined && stack.length === 1) {
+            const keys = Object.keys(stack[0]);
+            for (const key of keys) {
+                if (typeof stack[0][key] === 'undefined') {
+                    delete stack[0][key];
+                }
             }
         }
         if (error) {
