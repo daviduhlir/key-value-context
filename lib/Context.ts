@@ -40,6 +40,11 @@ export class Context<T extends ContextKeyValueData> {
     topItem[key] = value
   }
 
+  getAllKeys(): string[] {
+    const stack = [this.topData, ...(this.stackStorage.getStore() || [])]
+    return stack.reduce((acc, item) => [...acc, ...Object.keys(item)], []).filter((value, index, array) => array.indexOf(value) === index)
+  }
+
   async runInContext<K>(handler: () => Promise<K>): Promise<K> {
     const stack = [this.topData, ...(this.stackStorage.getStore() || [])]
     // preapre empty proxy cache
