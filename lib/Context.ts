@@ -35,7 +35,7 @@ export class Context<T extends ContextKeyValueData> {
   }
 
   setValue<K extends keyof T>(key: K, value: T[K] | undefined) {
-    const stack = [...(this.stackStorage.getStore() || [])]
+    const stack = [this.topData, ...(this.stackStorage.getStore() || [])]
     const topItem = stack[stack.length - 1]
     topItem[key] = value
   }
