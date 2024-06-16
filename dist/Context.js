@@ -38,6 +38,10 @@ class Context {
         const topItem = stack[stack.length - 1];
         topItem[key] = value;
     }
+    getAllKeys() {
+        const stack = [this.topData, ...(this.stackStorage.getStore() || [])];
+        return stack.reduce((acc, item) => [...acc, ...Object.keys(item)], []).filter((value, index, array) => array.indexOf(value) === index);
+    }
     runInContext(handler) {
         return __awaiter(this, void 0, void 0, function* () {
             const stack = [this.topData, ...(this.stackStorage.getStore() || [])];
