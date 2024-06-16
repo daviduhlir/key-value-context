@@ -17,7 +17,7 @@
     "type": "git",
     "url": "git+https://github.com/daviduhlir/key-value-context.git"
   },
-  "keywords": [],
+  "keywords": ["node", "context", "async_hook"],
   "author": "David Uhlíř",
   "license": "ISC",
   "devDependencies": {
