@@ -2,6 +2,7 @@ export declare type ContextKeyValueData = {
     [key: string]: any;
 };
 export interface ContextConfig {
+    flushIfSuccess?: boolean;
     flushIfFail?: boolean;
     deleteUndefined?: boolean;
 }

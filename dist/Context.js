@@ -15,6 +15,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.Context = exports.CONTEXT_BASE_CONFIG = void 0;
 const AsyncLocalStorage_1 = __importDefault(require("./utils/AsyncLocalStorage"));
 exports.CONTEXT_BASE_CONFIG = {
+    flushIfSuccess: true,
     flushIfFail: false,
     deleteUndefined: true,
 };
@@ -54,7 +55,7 @@ class Context {
             catch (e) {
                 error = e;
             }
-            if ((error && this.config.flushIfFail) || !error) {
+            if ((error && this.config.flushIfFail) || (!error && this.config.flushIfSuccess)) {
                 const topItem = stack[stack.length - 1];
                 const keys = Object.keys(actualData);
                 for (const key of keys) {

@@ -3,11 +3,13 @@ import AsyncLocalStorage from './utils/AsyncLocalStorage'
 export type ContextKeyValueData = { [key: string]: any }
 
 export interface ContextConfig {
+  flushIfSuccess?: boolean
   flushIfFail?: boolean
   deleteUndefined?: boolean
 }
 
 export const CONTEXT_BASE_CONFIG: ContextConfig = {
+  flushIfSuccess: true,
   flushIfFail: false,
   deleteUndefined: true,
 }
@@ -59,7 +61,7 @@ export class Context<T extends ContextKeyValueData> {
     }
 
     // flush storage
-    if ((error && this.config.flushIfFail) || !error) {
+    if ((error && this.config.flushIfFail) || (!error && this.config.flushIfSuccess)) {
       const topItem = stack[stack.length - 1]
       const keys = Object.keys(actualData)
       for (const key of keys) {
