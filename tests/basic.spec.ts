@@ -47,4 +47,21 @@ describe('Basic context tests', function() {
 
     assert(topData['key'] === 'value', 'Value should be not changed')
   })
+
+  it('Sync method call', async function() {
+    const topData = {
+      key: 'value'
+    }
+    const context = new Context(topData)
+    function test() {
+      return context.getValue('key')
+    }
+
+    let result = await context.runInContext(async () => {
+      context.setValue('key', 'Hello')
+      return test()
+    })
+
+    assert(result === 'Hello', 'Value should be getted from async scope')
+  })
 })

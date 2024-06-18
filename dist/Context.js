@@ -26,27 +26,26 @@ class Context {
         this.config = Object.assign(Object.assign({}, exports.CONTEXT_BASE_CONFIG), config);
     }
     getValue(key) {
-        const stack = [this.topData, ...(this.stackStorage.getStore() || [])];
-        for (let i = stack.length - 1; i > 0; i--) {
-            if (stack[i].hasOwnProperty(key)) {
-                return stack[i][key];
+        const stack = [{ data: this.topData }, ...(this.stackStorage.getStore() || [])];
+        for (let i = stack.length - 1; i >= 0; i--) {
+            if (stack[i].data.hasOwnProperty(key)) {
+                return stack[i].data[key];
             }
         }
         return undefined;
     }
     setValue(key, value) {
-        const stack = [this.topData, ...(this.stackStorage.getStore() || [])];
-        const topItem = stack[stack.length - 1];
-        topItem[key] = value;
+        const stack = [{ data: this.topData }, ...(this.stackStorage.getStore() || [])];
+        stack[stack.length - 1].data[key] = value;
     }
     getAllKeys() {
-        const stack = [this.topData, ...(this.stackStorage.getStore() || [])];
-        return stack.reduce((acc, item) => [...acc, ...Object.keys(item)], []).filter((value, index, array) => array.indexOf(value) === index);
+        const stack = [{ data: this.topData }, ...(this.stackStorage.getStore() || [])];
+        return stack.reduce((acc, item) => [...acc, ...Object.keys(item.data)], []).filter((value, index, array) => array.indexOf(value) === index);
     }
     runInContext(handler) {
         return __awaiter(this, void 0, void 0, function* () {
-            const stack = [this.topData, ...(this.stackStorage.getStore() || [])];
-            const actualData = {};
+            const stack = [{ data: this.topData }, ...(this.stackStorage.getStore() || [])];
+            const actualData = { data: {} };
             let result;
             let error;
             try {
@@ -56,18 +55,18 @@ class Context {
                 error = e;
             }
             if ((error && this.config.flushIfFail) || (!error && this.config.flushIfSuccess)) {
-                const topItem = stack[stack.length - 1];
-                const keys = Object.keys(actualData);
+                const topItem = stack[stack.length - 1].data;
+                const keys = Object.keys(actualData.data);
                 for (const key of keys) {
                     ;
-                    topItem[key] = actualData[key];
+                    topItem[key] = actualData.data[key];
                 }
             }
             if (this.config.deleteUndefined && stack.length === 1) {
-                const keys = Object.keys(stack[0]);
+                const keys = Object.keys(stack[0].data);
                 for (const key of keys) {
-                    if (typeof stack[0][key] === 'undefined') {
-                        delete stack[0][key];
+                    if (typeof stack[0].data[key] === 'undefined') {
+                        delete stack[0].data[key];
                     }
                 }
             }

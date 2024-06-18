@@ -24,33 +24,32 @@ export class Context<T extends ContextKeyValueData> {
     }
   }
 
-  protected stackStorage = new AsyncLocalStorage<Partial<T>[]>()
+  protected stackStorage = new AsyncLocalStorage<{ data: Partial<T> }[]>()
 
   getValue<K extends keyof T>(key: K): T[K] | undefined {
-    const stack = [this.topData, ...(this.stackStorage.getStore() || [])]
-    for (let i = stack.length - 1; i > 0; i--) {
-      if (stack[i].hasOwnProperty(key)) {
-        return stack[i][key] as any
+    const stack = [{ data: this.topData }, ...(this.stackStorage.getStore() || [])]
+    for (let i = stack.length - 1; i >= 0; i--) {
+      if (stack[i].data.hasOwnProperty(key)) {
+        return stack[i].data[key]
       }
     }
     return undefined
   }
 
   setValue<K extends keyof T>(key: K, value: T[K] | undefined) {
-    const stack = [this.topData, ...(this.stackStorage.getStore() || [])]
-    const topItem = stack[stack.length - 1]
-    topItem[key] = value
+    const stack = [{ data: this.topData }, ...(this.stackStorage.getStore() || [])]
+    stack[stack.length - 1].data[key] = value
   }
 
   getAllKeys(): string[] {
-    const stack = [this.topData, ...(this.stackStorage.getStore() || [])]
-    return stack.reduce((acc, item) => [...acc, ...Object.keys(item)], []).filter((value, index, array) => array.indexOf(value) === index)
+    const stack = [{ data: this.topData }, ...(this.stackStorage.getStore() || [])]
+    return stack.reduce((acc, item) => [...acc, ...Object.keys(item.data)], []).filter((value, index, array) => array.indexOf(value) === index)
   }
 
   async runInContext<K>(handler: () => Promise<K>): Promise<K> {
-    const stack = [this.topData, ...(this.stackStorage.getStore() || [])]
+    const stack = [{ data: this.topData }, ...(this.stackStorage.getStore() || [])]
     // preapre empty proxy cache
-    const actualData = {}
+    const actualData = { data: {} }
 
     let result
     let error
@@ -62,18 +61,18 @@ export class Context<T extends ContextKeyValueData> {
 
     // flush storage
     if ((error && this.config.flushIfFail) || (!error && this.config.flushIfSuccess)) {
-      const topItem = stack[stack.length - 1]
-      const keys = Object.keys(actualData)
+      const topItem = stack[stack.length - 1].data
+      const keys = Object.keys(actualData.data)
       for (const key of keys) {
-        ;(topItem[key] as any) = actualData[key]
+        ;(topItem[key] as any) = actualData.data[key]
       }
     }
 
     if (this.config.deleteUndefined && stack.length === 1) {
-      const keys = Object.keys(stack[0])
+      const keys = Object.keys(stack[0].data)
       for (const key of keys) {
-        if (typeof stack[0][key] === 'undefined') {
-          delete stack[0][key]
+        if (typeof stack[0].data[key] === 'undefined') {
+          delete stack[0].data[key]
         }
       }
     }
