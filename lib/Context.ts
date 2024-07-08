@@ -1,5 +1,5 @@
 import AsyncLocalStorage from './utils/AsyncLocalStorage'
-import * as cluster from 'cluster'
+import cluster from './utils/cluster'
 
 export type ContextKeyValueData = { [key: string]: any }
 
