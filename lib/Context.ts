@@ -1,4 +1,5 @@
 import AsyncLocalStorage from './utils/AsyncLocalStorage'
+import * as cluster from 'cluster'
 
 export type ContextKeyValueData = { [key: string]: any }
 
@@ -6,6 +7,7 @@ export interface ContextConfig {
   flushIfSuccess?: boolean
   flushIfFail?: boolean
   deleteUndefined?: boolean
+  sharedClusterKey?: string
 }
 
 export const CONTEXT_BASE_CONFIG: ContextConfig = {
@@ -14,13 +16,37 @@ export const CONTEXT_BASE_CONFIG: ContextConfig = {
   deleteUndefined: true,
 }
 
+const INTERNAL_MESSAGE_BROADCAST = 'KEY-VALUE-CONTEXT-INTERNAL-MESSAGE-BROADCAST'
+
 export class Context<T extends ContextKeyValueData> {
+  protected static clusterProxyAttached = false
   protected config: ContextConfig
 
   constructor(readonly topData: Partial<T> = {}, config: Partial<ContextConfig> = {}) {
     this.config = {
       ...CONTEXT_BASE_CONFIG,
       ...config,
+    }
+    this.initialize()
+  }
+
+  /**
+   * Initialize proxy in master process
+   */
+  static initializeMaster() {
+    if (!Context.clusterProxyAttached && !cluster.isWorker) {
+      cluster.on('message', async (worker, message) => {
+        if (message['INTERNAL_MESSAGE_BROADCAST'] === INTERNAL_MESSAGE_BROADCAST) {
+          Object.keys(cluster.workers).forEach(workerId => {
+            const remoteWorker = cluster.workers[workerId]
+            // do not send it back
+            if (worker.id !== remoteWorker.id) {
+              remoteWorker.send(message)
+            }
+          })
+        }
+      })
+      Context.clusterProxyAttached = true
     }
   }
 
@@ -66,6 +92,11 @@ export class Context<T extends ContextKeyValueData> {
       for (const key of keys) {
         ;(topItem[key] as any) = actualData.data[key]
       }
+
+      if (stack.length === 1 && this.config.sharedClusterKey) {
+        // we are flushing to top data
+        this.sendChange(actualData.data)
+      }
     }
 
     if (this.config.deleteUndefined && stack.length === 1) {
@@ -81,5 +112,65 @@ export class Context<T extends ContextKeyValueData> {
       throw error
     }
     return result
+  }
+
+  /**
+   * Broadcast message
+   */
+  protected initialize() {
+    Context.initializeMaster()
+
+    if (!this.config.sharedClusterKey) {
+      return
+    }
+    if (cluster.isWorker) {
+      process.on('message', async message => {
+        if (message['INTERNAL_MESSAGE_BROADCAST'] === INTERNAL_MESSAGE_BROADCAST && message.key === this.config.sharedClusterKey) {
+          this.applyChange(message.data)
+        }
+      })
+    } else {
+      cluster.on('message', async (worker, message) => {
+        if (message['INTERNAL_MESSAGE_BROADCAST'] === INTERNAL_MESSAGE_BROADCAST) {
+          // message for me
+          if (message.key === this.config.sharedClusterKey) {
+            this.applyChange(message.data)
+          }
+        }
+      })
+    }
+  }
+
+  protected sendChange(data: Partial<T>) {
+    if (!this.config.sharedClusterKey) {
+      return
+    }
+    const message = {
+      INTERNAL_MESSAGE_BROADCAST,
+      key: this.config.sharedClusterKey,
+      data,
+    }
+    if (cluster.isWorker) {
+      process.send(message)
+    } else {
+      Object.keys(cluster.workers).forEach(workerId => {
+        cluster.workers?.[workerId]?.send?.(message)
+      })
+    }
+  }
+
+  protected applyChange(data: Partial<T>) {
+    const keys = Object.keys(data)
+    for (const key of keys) {
+      ;(this.topData[key] as any) = data[key]
+    }
+    if (this.config.deleteUndefined) {
+      const keys = Object.keys(this.topData)
+      for (const key of keys) {
+        if (typeof this.topData[key] === 'undefined') {
+          delete this.topData[key]
+        }
+      }
+    }
   }
 }
