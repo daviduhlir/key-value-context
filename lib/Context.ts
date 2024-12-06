@@ -1,5 +1,6 @@
 import AsyncLocalStorage from './utils/AsyncLocalStorage'
 import cluster from './utils/cluster'
+import { getRandomId } from './utils'
 
 export type ContextKeyValueData = { [key: string]: any }
 
@@ -21,12 +22,14 @@ const INTERNAL_MESSAGE_BROADCAST = 'KEY-VALUE-CONTEXT-INTERNAL-MESSAGE-BROADCAST
 export class Context<T extends ContextKeyValueData> {
   protected static clusterProxyAttached = false
   protected config: ContextConfig
+  protected storageKey: string
 
   constructor(readonly topData: Partial<T> = {}, config: Partial<ContextConfig> = {}) {
     this.config = {
       ...CONTEXT_BASE_CONFIG,
       ...config,
     }
+    this.storageKey = this.config.sharedClusterKey ? this.config.sharedClusterKey : getRandomId()
     this.initialize()
   }
 
@@ -50,10 +53,10 @@ export class Context<T extends ContextKeyValueData> {
     }
   }
 
-  protected stackStorage = new AsyncLocalStorage<{ data: Partial<T> }[]>()
+  protected static stackStorage = new AsyncLocalStorage<{ [key: string]: { data: any }[] }>()
 
   getValue<K extends keyof T>(key: K): T[K] | undefined {
-    const stack = [{ data: this.topData }, ...(this.stackStorage.getStore() || [])]
+    const stack = [{ data: this.topData }, ...this.getStore()]
     for (let i = stack.length - 1; i >= 0; i--) {
       if (stack[i].data.hasOwnProperty(key)) {
         return stack[i].data[key]
@@ -63,24 +66,25 @@ export class Context<T extends ContextKeyValueData> {
   }
 
   setValue<K extends keyof T>(key: K, value: T[K] | undefined) {
-    const stack = [{ data: this.topData }, ...(this.stackStorage.getStore() || [])]
+    const stack = [{ data: this.topData }, ...this.getStore()]
     stack[stack.length - 1].data[key] = value
   }
 
   getAllKeys(): string[] {
-    const stack = [{ data: this.topData }, ...(this.stackStorage.getStore() || [])]
+    const stack = [{ data: this.topData }, ...this.getStore()]
     return stack.reduce((acc, item) => [...acc, ...Object.keys(item.data)], []).filter((value, index, array) => array.indexOf(value) === index)
   }
 
   async runInContext<K>(handler: () => Promise<K>): Promise<K> {
-    const stack = [{ data: this.topData }, ...(this.stackStorage.getStore() || [])]
+    const storage = Context.stackStorage.getStore() || {}
+    const stack = [{ data: this.topData }, ...this.getStore()]
     // preapre empty proxy cache
     const actualData = { data: {} }
 
     let result
     let error
     try {
-      result = await this.stackStorage.run([...stack, actualData], async () => handler())
+      result = await Context.stackStorage.run({ ...storage, [this.storageKey]: [...stack, actualData] }, async () => handler())
     } catch (e) {
       error = e
     }
@@ -112,6 +116,10 @@ export class Context<T extends ContextKeyValueData> {
       throw error
     }
     return result
+  }
+
+  protected getStore(): { data: Partial<T> }[] {
+    return (Context.stackStorage.getStore() || {})[this.storageKey] || []
   }
 
   /**
