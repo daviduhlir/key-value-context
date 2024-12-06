@@ -15,13 +15,13 @@ describe('Share in cluster', function() {
       child.stderr.on('data', data => errors.push(data.toString()))
       child.on('exit', (code) => {
         if (code === 0) {
-          resolve(outputs)
+          resolve(outputs.join('').split('\n').filter(Boolean))
         } else {
           reject(errors)
         }
       })
     })
 
-    assert(result.every(l => l === 'Hello\n'), 'All values should be changed from master')
+    assert(result.every(l => l === 'Hello'), 'All values should be changed from master')
   })
 })
